@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>KOKEI Parameter Testbed v0.2.2</title>
+<style>
+:root{--bg:#f6f6f4;--fg:#111;--muted:#70706c;--line:#d7d7d2;--panel:#fff;--accent:#111;--danger:#a11}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;min-height:100%;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif}
+body{overscroll-behavior-y:none}
+main{max-width:920px;margin:0 auto;padding:calc(14px + env(safe-area-inset-top)) 12px calc(28px + env(safe-area-inset-bottom))}
+header{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:0 2px 12px}
+h1{font-size:17px;line-height:1.2;margin:0;font-weight:680;letter-spacing:.01em}.meta{font-size:11px;color:var(--muted);text-align:right}
+.stage{background:#111;border-radius:14px;min-height:55vh;display:grid;place-items:center;overflow:hidden;position:relative;border:1px solid #202020;touch-action:manipulation}
+canvas{display:block;max-width:100%;max-height:68vh;width:auto;height:auto}.empty{color:#aaa;text-align:center;padding:44px 24px;font-size:14px;line-height:1.55;max-width:430px}
+.loading{position:absolute;inset:0;background:rgba(0,0,0,.78);color:#fff;display:none;place-items:center;text-align:center;padding:30px;font-size:14px;line-height:1.5;z-index:4}.stage.busy .loading{display:grid}
+.drop{position:absolute;inset:0;display:none;place-items:center;background:rgba(0,0,0,.74);color:#fff;font-weight:650;z-index:3}.stage.drag .drop{display:grid}
+.controls{margin-top:12px;background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:13px}
+.row{display:grid;grid-template-columns:82px 1fr 48px;gap:10px;align-items:center}.label{font-size:13px;font-weight:650}.value{text-align:right;font-variant-numeric:tabular-nums;font-size:13px}
+input[type=range]{width:100%;accent-color:var(--accent);min-height:34px}
+.actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}.btn{appearance:none;border:1px solid var(--line);background:#fff;color:#111;border-radius:10px;padding:10px 12px;font-size:13px;font-weight:620;cursor:pointer;min-height:40px}.btn.primary{background:#111;color:#fff;border-color:#111}.btn:disabled{opacity:.4;cursor:not-allowed}
+.fileNative{display:block;width:100%;min-height:44px;font-size:13px;color:#111;border:1px solid var(--line);background:#fff;border-radius:10px;padding:4px}.fileNative::file-selector-button{appearance:none;border:0;background:#111;color:#fff;border-radius:8px;padding:10px 12px;margin-right:10px;font-size:13px;font-weight:650;cursor:pointer}
+.status{margin-top:9px;font-size:12px;line-height:1.45;color:var(--muted);min-height:18px;word-break:break-word}.status.error{color:var(--danger)}
+.note{margin-top:8px;color:var(--muted);font-size:10.5px;line-height:1.5;border-top:1px solid #ecece8;padding-top:8px}
+.module{font-size:11px;color:var(--muted);margin-bottom:10px}
+@media(max-width:620px){main{padding-left:8px;padding-right:8px}.stage{min-height:52vh;border-radius:11px}.controls{border-radius:11px}.row{grid-template-columns:72px 1fr 40px;gap:7px}.meta{display:none}.actions{display:grid;grid-template-columns:1fr 1fr}.btn.primary{grid-column:1/-1}.btn{width:100%}}
+</style>
+</head>
+<body>
+<main>
+<header><h1>KOKEI — Parameter Testbed</h1><div class="meta">v0.2.2 · Loader Diagnostic · local-only</div></header>
+<section class="stage" id="stage">
+  <div class="empty" id="empty">選擇一張照片開始測試。<br>照片只在你的裝置內處理，不會上傳。</div>
+  <canvas id="canvas" hidden></canvas>
+  <div class="loading" id="loading">正在讀取照片…</div>
+  <div class="drop">放開以載入照片</div>
+</section>
+<section class="controls">
+  <div class="module" id="moduleName">Module: C2-CO Contrast Geometry v0.1</div>
+  <div class="row">
+    <div class="label" id="paramLabel">Contrast</div>
+    <input id="slider" type="range" min="-50" max="50" step="1" value="0" disabled />
+    <div class="value" id="value">0</div>
+  </div>
+  <div class="actions">
+    <input class="fileNative" id="file" type="file" accept="image/*" aria-label="選擇測試照片" />
+    <button class="btn" id="readSelected" type="button" style="margin-top:8px;width:100%">讀取已選照片</button>
+    <button class="btn" id="before" type="button" disabled>按住看 Before</button>
+    <button class="btn" id="reset" type="button" disabled>歸零</button>
+    <button class="btn" id="save" type="button" disabled>輸出預覽 PNG</button>
+  </div>
+  <div class="status" id="status">Stage 0/5 · 等待照片。</div>
+  <div class="note">C2-CO：Contrast 0 = identity；±25→±50 使用近似線性 UI dose；正負向使用不同的 nonlinear PCHIP basis。此為 bounded visual test，不代表 production algorithm。未來 ParameterModule 可替換成 Exposure / Highlights / Shadows / Grain 等研究模組。</div>
+</section>
+</main>
+<script>
+'use strict';
+
+const C2COContrast = (() => {
+  const KNOTS=[
+    [0.00,0.0,0.0],[0.05,-0.07491,0.02536],[0.10,-0.13502,0.04548],
+    [0.20,-0.17845,0.05849],[0.30,-0.05341,0.01793],[0.34,-0.01299,0.00069],
+    [0.50,0.29576,-0.09898],[0.70,0.32873,-0.11422],[0.85,0.19793,-0.07050],
+    [0.95,0.06655,-0.02853],[1.00,0.0,0.0]
+  ];
+  const xs=KNOTS.map(k=>k[0]), yp=KNOTS.map(k=>k[1]), yn=KNOTS.map(k=>k[2]);
+  function slopes(ys){
+    const n=xs.length,h=[],d=[],m=new Array(n).fill(0);
+    for(let i=0;i<n-1;i++){h[i]=xs[i+1]-xs[i];d[i]=(ys[i+1]-ys[i])/h[i]}
+    m[0]=((2*h[0]+h[1])*d[0]-h[0]*d[1])/(h[0]+h[1]);
+    if(Math.sign(m[0])!==Math.sign(d[0]))m[0]=0;else if(Math.sign(d[0])!==Math.sign(d[1])&&Math.abs(m[0])>3*Math.abs(d[0]))m[0]=3*d[0];
+    for(let i=1;i<n-1;i++){
+      if(d[i-1]===0||d[i]===0||Math.sign(d[i-1])!==Math.sign(d[i]))m[i]=0;
+      else{const w1=2*h[i]+h[i-1],w2=h[i]+2*h[i-1];m[i]=(w1+w2)/(w1/d[i-1]+w2/d[i]);}
+    }
+    const k=n-1;m[k]=((2*h[k-1]+h[k-2])*d[k-1]-h[k-1]*d[k-2])/(h[k-1]+h[k-2]);
+    if(Math.sign(m[k])!==Math.sign(d[k-1]))m[k]=0;else if(Math.sign(d[k-1])!==Math.sign(d[k-2])&&Math.abs(m[k])>3*Math.abs(d[k-1]))m[k]=3*d[k-1];
+    return m;
+  }
+  const mp=slopes(yp),mn=slopes(yn);
+  function pchip(x,ys,ms){
+    x=Math.min(1,Math.max(0,x));let i=xs.length-2;
+    for(let j=0;j<xs.length-1;j++){if(x<=xs[j+1]){i=j;break}}
+    const h=xs[i+1]-xs[i],t=(x-xs[i])/h,t2=t*t,t3=t2*t;
+    return (2*t3-3*t2+1)*ys[i]+(t3-2*t2+t)*h*ms[i]+(-2*t3+3*t2)*ys[i+1]+(t3-t2)*h*ms[i+1];
+  }
+  function transformY(x,c){
+    if(c===0)return x;
+    const u=Math.max(-.5,Math.min(.5,c/100)),m=Math.abs(u),basis=u>=0?pchip(x,yp,mp):pchip(x,yn,mn);
+    return Math.max(0,Math.min(1,x+m*basis));
+  }
+  return {
+    id:'c2co-contrast-v01',name:'C2-CO Contrast Geometry v0.1',label:'Contrast',min:-50,max:50,step:1,neutral:0,
+    process(data,value){
+      if(value===0)return data;
+      const d=data;
+      for(let i=0;i<d.length;i+=4){
+        const r=d[i]/255,g=d[i+1]/255,b=d[i+2]/255;
+        const y=.2126*r+.7152*g+.0722*b,yy=transformY(y,value);
+        if(y<1e-6){const q=Math.round(yy*255);d[i]=d[i+1]=d[i+2]=q;continue}
+        const s=yy/y;
+        d[i]=Math.max(0,Math.min(255,Math.round(r*s*255)));
+        d[i+1]=Math.max(0,Math.min(255,Math.round(g*s*255)));
+        d[i+2]=Math.max(0,Math.min(255,Math.round(b*s*255)));
+      }
+      return d;
+    }
+  };
+})();
+const moduleDef=C2COContrast;
+
+const $=id=>document.getElementById(id);
+const canvas=$('canvas'),ctx=canvas.getContext('2d',{willReadFrequently:true});
+const fileInput=$('file'),readSelected=$('readSelected'),slider=$('slider'),valueEl=$('value'),before=$('before'),reset=$('reset'),save=$('save'),stage=$('stage'),empty=$('empty'),status=$('status'),loading=$('loading');
+let original=null,renderToken=0,showingBefore=false;
+
+$('moduleName').textContent='Module: '+moduleDef.name;$('paramLabel').textContent=moduleDef.label;
+slider.min=moduleDef.min;slider.max=moduleDef.max;slider.step=moduleDef.step;slider.value=moduleDef.neutral;valueEl.textContent=moduleDef.neutral;
+
+function setStatus(text,isError=false){status.textContent=text;status.classList.toggle('error',isError)}
+function setBusy(on,text='正在讀取照片…'){stage.classList.toggle('busy',on);loading.textContent=text}
+function enableControls(on){slider.disabled=before.disabled=reset.disabled=save.disabled=!on}
+function nextFrame(){return new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))}
+
+let lastFileKey='',loaderBusy=false;
+function getSelectedFile(source='manual'){
+  let f=null;
+  try{ f=fileInput.files&&fileInput.files.length?fileInput.files[0]:null; }catch(e){
+    setStatus('SANDBOX · UI 顯示已選檔，但 JavaScript 無法存取 input.files：'+(e.message||e),true);return false;
+  }
+  if(!f){
+    if(source==='manual') setStatus('Stage 1/5 · UI 可能已顯示檔名，但 JavaScript 目前讀不到 input.files[0]。',true);
+    return false;
+  }
+  const key=[f.name,f.size,f.lastModified].join('|');
+  if(loaderBusy||key===lastFileKey)return true;
+  lastFileKey=key;loaderBusy=true;
+  setStatus(`Stage 2/5 · File received (${source}) · ${f.name||'image'} · ${Math.round(f.size/1024)} KB`);
+  Promise.resolve(loadFile(f)).finally(()=>{loaderBusy=false});
+  return true;
+}
+fileInput.addEventListener('pointerdown',()=>setStatus('Stage 1/5 · 原生照片選擇器已觸發。'));
+fileInput.addEventListener('click',()=>setStatus('Stage 1/5 · file input click 已送達 JavaScript。'));
+fileInput.addEventListener('input',()=>getSelectedFile('input event'));
+fileInput.addEventListener('change',()=>getSelectedFile('change event'));
+readSelected.addEventListener('click',()=>getSelectedFile('讀取按鈕'));
+window.addEventListener('focus',()=>setTimeout(()=>getSelectedFile('window focus'),50));
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)setTimeout(()=>getSelectedFile('visibility return'),50)});
+let pollCount=0;
+setInterval(()=>{
+  pollCount++;
+  if(getSelectedFile('poll'))return;
+  if(pollCount===4 && status.textContent.includes('Stage 0/5')) setStatus('Stage 0/5 · Loader monitor ACTIVE · 等待照片。');
+},500);
+
+async function loadFile(file){
+  setBusy(true,'正在解碼 '+(file.name||'照片')+'…');enableControls(false);
+  await nextFrame();
+  let decoded=null, revoke=null;
+  try{
+    if(file.size>45*1024*1024)throw new Error('照片檔案超過 45 MB，請先用較小版本測試。');
+    setStatus('Stage 3/5 · 正在 image decode…');
+    try{
+      const url=URL.createObjectURL(file); revoke=()=>URL.revokeObjectURL(url);
+      decoded=await loadImage(url);
+    }catch(primaryErr){
+      if(revoke){revoke();revoke=null}
+      setStatus('Stage 3/5 · Object URL decode 失敗，改用 FileReader fallback…');
+      const dataURL=await readAsDataURL(file);
+      decoded=await loadImage(dataURL);
+    }
+    const iw=decoded.naturalWidth||decoded.width, ih=decoded.naturalHeight||decoded.height;
+    if(!iw||!ih)throw new Error('圖片尺寸無法讀取。');
+    setStatus(`Stage 3/5 · Decode PASS · ${iw}×${ih}`);
+    await nextFrame();
+
+    const mobile=/iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const maxPixels=mobile?800000:1800000;
+    const scale=Math.min(1,Math.sqrt(maxPixels/(iw*ih)));
+    const w=Math.max(1,Math.round(iw*scale)),h=Math.max(1,Math.round(ih*scale));
+    canvas.width=w;canvas.height=h;
+    ctx.clearRect(0,0,w,h);ctx.drawImage(decoded,0,0,w,h);
+    setStatus(`Stage 4/5 · Canvas draw PASS · ${w}×${h}`);
+    await nextFrame();
+    original=ctx.getImageData(0,0,w,h);
+    setStatus(`Stage 5/5 · Pixel readback PASS · Ready · preview ${w}×${h}${mobile?' · mobile memory cap':''}`);
+
+    canvas.hidden=false;empty.hidden=true;enableControls(true);
+    slider.value=moduleDef.neutral;valueEl.textContent=moduleDef.neutral;
+    ctx.putImageData(original,0,0);
+  }catch(err){
+    console.error(err);original=null;canvas.hidden=true;empty.hidden=false;enableControls(false);
+    setStatus('FAILED · '+(err&&err.message?err.message:String(err)),true);
+  }finally{
+    if(revoke)revoke();
+    setBusy(false);
+  }
+}
+function readAsDataURL(file){
+  return new Promise((resolve,reject)=>{
+    if(typeof FileReader==='undefined')return reject(new Error('FileReader unavailable'));
+    const reader=new FileReader();
+    reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(reader.error||new Error('FileReader 失敗'));
+    reader.readAsDataURL(file);
+  });
+}
+function loadImage(src){
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    img.onload=()=>resolve(img);
+    img.onerror=()=>reject(new Error('Image decode 失敗。若是 HEIC/HEIF，請先用 JPEG 或 PNG 測試。'));
+    img.src=src;
+  });
+}
+
+function render(){
+  if(!original)return;
+  const token=++renderToken;
+  requestAnimationFrame(()=>{
+    if(token!==renderToken||!original)return;
+    const v=Number(slider.value);
+    if(showingBefore||v===moduleDef.neutral){ctx.putImageData(original,0,0);return}
+    const copy=new Uint8ClampedArray(original.data);
+    moduleDef.process(copy,v);
+    if(token!==renderToken)return;
+    ctx.putImageData(new ImageData(copy,original.width,original.height),0,0);
+  });
+}
+slider.addEventListener('input',()=>{valueEl.textContent=slider.value;render()});
+reset.addEventListener('click',()=>{slider.value=moduleDef.neutral;valueEl.textContent=moduleDef.neutral;render()});
+function beforeOn(e){if(e)e.preventDefault();showingBefore=true;render()}
+function beforeOff(){showingBefore=false;render()}
+before.addEventListener('pointerdown',beforeOn);before.addEventListener('pointerup',beforeOff);before.addEventListener('pointercancel',beforeOff);before.addEventListener('pointerleave',beforeOff);
+before.addEventListener('touchstart',beforeOn,{passive:false});before.addEventListener('touchend',beforeOff,{passive:true});
+
+save.addEventListener('click',()=>{
+  if(!original)return;
+  try{
+    canvas.toBlob(blob=>{
+      if(!blob){setStatus('PNG 輸出失敗。',true);return}
+      const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`KOKEI_${moduleDef.id}_${slider.value}.png`;
+      document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1500);
+    },'image/png');
+  }catch(err){setStatus('此內嵌瀏覽器不支援直接下載 PNG；你仍可用截圖比較。',true)}
+});
+
+['dragenter','dragover'].forEach(ev=>stage.addEventListener(ev,e=>{e.preventDefault();stage.classList.add('drag')}));
+['dragleave','drop'].forEach(ev=>stage.addEventListener(ev,e=>{e.preventDefault();stage.classList.remove('drag')}));
+stage.addEventListener('drop',e=>{const f=e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0];if(f)loadFile(f)});
+window.addEventListener('error',e=>setStatus('頁面錯誤：'+e.message,true));
+</script>
+</body>
+</html>
