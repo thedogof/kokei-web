@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#f2f2ef">
+<title>KOKEI Grain Blind Gate</title>
+<style>
+:root{--bg:#f2f2ef;--fg:#11110f;--muted:#74746f;--line:#d8d8d2;--surface:#fbfbf8;--good:#1f6b45;--bad:#9b342c}*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}html,body{margin:0;min-height:100%;background:var(--bg);color:var(--fg);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif}body{overscroll-behavior-y:none}main{max-width:820px;margin:0 auto;padding:calc(12px + env(safe-area-inset-top)) 0 calc(28px + env(safe-area-inset-bottom))}header{padding:0 12px 10px;display:flex;justify-content:space-between;align-items:end;gap:12px}h1{font-size:17px;margin:0;font-weight:720}.meta{font-size:10px;color:var(--muted)}.panel{margin:0 9px 9px;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:12px}.lead{font-size:13px;line-height:1.55;margin:0 0 10px}.small,.status{font-size:10.5px;line-height:1.5;color:var(--muted)}.files{display:grid;gap:8px}.fileRow{display:grid;grid-template-columns:72px 1fr;gap:8px;align-items:center}.fileRow b{font-size:11px}.file{width:100%;font-size:12px;color:#111;border:1px solid var(--line);background:#fff;border-radius:9px;padding:3px;min-height:44px}.file::file-selector-button{appearance:none;border:0;background:#111;color:#fff;border-radius:7px;padding:9px 10px;margin-right:8px;font-weight:680}.btn,.ab button,.choice button,.confidence button,.reason button,.viewMode button{appearance:none;border:1px solid var(--line);background:#fff;color:#111;border-radius:10px;min-height:43px;font-size:12px;font-weight:680;padding:7px}.btn.primary{background:#111;color:#fff;border-color:#111}.btn:disabled{opacity:.36}.activeBtn{background:#111!important;color:#fff!important;border-color:#111!important}.stageWrap{display:none;position:relative;width:100%;background:#d5d5d1;overflow:hidden;place-items:center;min-height:48svh}.stageWrap.active{display:grid}.stage{display:block;max-width:100%;max-height:calc(100svh - 250px);object-fit:contain;transform-origin:center center;user-select:none;-webkit-user-select:none;touch-action:pan-x pan-y}.stage.oneHundred{max-width:none;max-height:none;width:auto;height:auto}.hint{position:absolute;top:8px;left:50%;transform:translateX(-50%);padding:6px 8px;background:rgba(0,0,0,.38);color:#fff;border-radius:99px;font-size:10px;white-space:nowrap;pointer-events:none}.trial{display:none;padding:10px 9px}.trial.active{display:block}.trialTop{display:flex;justify-content:space-between;gap:8px;align-items:center;margin-bottom:7px}.trialId,.progress{font-size:10.5px;color:var(--muted)}.ab,.viewMode{display:grid;grid-template-columns:1fr 1fr;gap:7px}.viewMode{margin-top:7px}.question{font-size:12px;font-weight:720;margin:11px 0 6px}.choice{display:grid;grid-template-columns:1fr 1fr 1.35fr;gap:6px}.confidence{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}.reason{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}.reason button{font-size:10.5px;min-height:37px;padding:5px}.actions{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:11px}.results{display:none;margin:9px;border:1px solid var(--line);border-radius:13px;background:#fff;padding:12px}.results.active{display:block}.results h2{font-size:15px;margin:0 0 8px}.results pre{white-space:pre-wrap;word-break:break-word;background:#f4f4f1;border-radius:9px;padding:9px;font-size:10.5px;line-height:1.45;margin:0 0 8px}@media(max-width:620px){.meta{display:none}.panel{margin-left:7px;margin-right:7px}.trial{padding-left:7px;padding-right:7px}.reason{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body><main>
+<header><h1>KOKEI — Grain Blind Gate</h1><div class="meta">R&D · 039I · v0.1</div></header>
+<section class="panel" id="intake">
+<p class="lead">這是 R&D Grain 專用盲測面。它不修改 QA 的 proxy gate。請載入同一來源、同一裁切、同一輸出尺寸的兩個候選；若有原圖可一起載入作參考，但原圖不參與 A/B 隨機化。</p>
+<div class="files">
+<div class="fileRow"><b>Candidate 1</b><input class="file" id="file1" type="file" accept="image/*"></div>
+<div class="fileRow"><b>Candidate 2</b><input class="file" id="file2" type="file" accept="image/*"></div>
+<div class="fileRow"><b>Source</b><input class="file" id="source" type="file" accept="image/*"></div>
+</div>
+<div class="status" id="status">等待候選。影像只在本機瀏覽器記憶體處理，不上傳。</div>
+<div class="small" style="margin-top:8px">正式判斷至少需要：候選尺寸一致；同一 material realization / seed policy；fit-view 與 100% 檢視都看同一張輸出，不在不同 zoom 重新生成 Grain。</div>
+<div class="actions"><button class="btn" id="reset">清除</button><button class="btn primary" id="start" disabled>開始盲測</button></div>
+</section>
+<section class="stageWrap" id="stageWrap"><img class="stage" id="stage" alt="Grain blind candidate"><div class="hint">A / B 切換；Fit / 100% 使用同一輸出</div></section>
+<section class="trial" id="trial">
+<div class="trialTop"><div class="trialId" id="trialId"></div><div class="progress">Pairwise A/B</div></div>
+<div class="ab"><button id="viewA" class="activeBtn">A</button><button id="viewB">B</button></div>
+<div class="viewMode"><button id="fit" class="activeBtn">Fit</button><button id="hundred">100%</button></div>
+<div class="question">哪一個 Grain 更像影像本身的材質？</div>
+<div class="choice"><button data-choice="A">A 較好</button><button data-choice="B">B 較好</button><button data-choice="same">分不出可靠差異</button></div>
+<div class="question">信心程度</div>
+<div class="confidence"><button data-confidence="low">低</button><button data-confidence="medium">中</button><button data-confidence="high">高</button></div>
+<div class="question">主要差異／失敗感（可複選）</div>
+<div class="reason"><button data-reason="natural">材質自然</button><button data-reason="overlay">像覆蓋雜訊</button><button data-reason="mushy">糊／悶</button><button data-reason="sand">沙／躁</button><button data-reason="detail">搶細節</button><button data-reason="mottle">低頻髒感</button><button data-reason="size">顆粒尺度</button><button data-reason="amount">顆粒強度</button><button data-reason="cannot-tell">看不出</button></div>
+<div class="actions"><button class="btn" id="cancel">返回</button><button class="btn primary" id="finish" disabled>完成並封存紀錄</button></div>
+</section>
+<section class="results" id="results"><h2>盲測完成</h2><pre id="summary"></pre><div class="actions"><button class="btn" id="again">再測一次</button><button class="btn primary" id="copy">複製 R&D JSON</button></div><div class="small" style="margin-top:8px">完整 mapping 只在完成後寫入紀錄。若回答為 same/no reliable difference，請不要為了『一定要選』而解讀隨機偏好。</div></section>
+</main>
+<script>
+'use strict';
+const VERSION='KQ-GRAIN-AB-RD039I-v0.1';
+const $=id=>document.getElementById(id);const f1=$('file1'),f2=$('file2'),src=$('source'),statusEl=$('status'),start=$('start'),stage=$('stage'),stageWrap=$('stageWrap'),trial=$('trial'),results=$('results'),summary=$('summary');
+let files={c1:null,c2:null,source:null},urls={c1:null,c2:null,source:null},map=null,current='A',view='fit',choice=null,confidence=null,reasons=new Set(),record=null;
+function revoke(){Object.values(urls).forEach(u=>u&&URL.revokeObjectURL(u));urls={c1:null,c2:null,source:null}}
+function refresh(){files.c1=f1.files[0]||null;files.c2=f2.files[0]||null;files.source=src.files[0]||null;start.disabled=!(files.c1&&files.c2);statusEl.textContent=start.disabled?'請至少載入兩個候選。':'候選已就緒。開始後才建立並持久化 hidden A/B mapping。'}
+[f1,f2,src].forEach(x=>x.addEventListener('change',refresh));
+async function sha256(file){if(!file)return null;const b=await file.arrayBuffer(),h=await crypto.subtle.digest('SHA-256',b);return [...new Uint8Array(h)].map(v=>v.toString(16).padStart(2,'0')).join('')}
+function randomBool(){const a=new Uint32Array(1);crypto.getRandomValues(a);return !!(a[0]&1)}
+function loadDims(file){return new Promise((res,rej)=>{const u=URL.createObjectURL(file),im=new Image();im.onload=()=>{const out={w:im.naturalWidth,h:im.naturalHeight};URL.revokeObjectURL(u);res(out)};im.onerror=rej;im.src=u})}
+function show(side){current=side;$('viewA').classList.toggle('activeBtn',side==='A');$('viewB').classList.toggle('activeBtn',side==='B');const key=map[side];stage.src=urls[key];}
+function setView(v){view=v;stage.classList.toggle('oneHundred',v==='100');$('fit').classList.toggle('activeBtn',v==='fit');$('hundred').classList.toggle('activeBtn',v==='100');if(v==='100'){stage.style.width='auto';stage.style.height='auto'}else{stage.style.width='';stage.style.height=''}}
+async function begin(){start.disabled=true;statusEl.textContent='建立盲測紀錄…';const [d1,d2,ds,h1,h2,hs]=await Promise.all([loadDims(files.c1),loadDims(files.c2),files.source?loadDims(files.source):null,sha256(files.c1),sha256(files.c2),files.source?sha256(files.source):null]);if(d1.w!==d2.w||d1.h!==d2.h){statusEl.textContent=`拒絕：候選尺寸不同（${d1.w}×${d1.h} vs ${d2.w}×${d2.h}）。`;start.disabled=false;return}revoke();urls.c1=URL.createObjectURL(files.c1);urls.c2=URL.createObjectURL(files.c2);if(files.source)urls.source=URL.createObjectURL(files.source);const flip=randomBool();map=flip?{A:'c1',B:'c2'}:{A:'c2',B:'c1'};const commitment={version:VERSION,createdAt:new Date().toISOString(),mapping:map,candidate1:{name:files.c1.name,bytes:files.c1.size,width:d1.w,height:d1.h,sha256:h1},candidate2:{name:files.c2.name,bytes:files.c2.size,width:d2.w,height:d2.h,sha256:h2},source:files.source?{name:files.source.name,bytes:files.source.size,width:ds.w,height:ds.h,sha256:hs}:null,viewport:{cssW:innerWidth,cssH:innerHeight,dpr:devicePixelRatio||1,screenW:screen.width,screenH:screen.height}};localStorage.setItem('kq_grain_blind_commitment',JSON.stringify(commitment));record=commitment;$('intake').style.display='none';stageWrap.classList.add('active');trial.classList.add('active');$('trialId').textContent=`${VERSION} · ${d1.w}×${d1.h}`;show('A');setView('fit');statusEl.textContent='';}
+start.onclick=begin;$('viewA').onclick=()=>show('A');$('viewB').onclick=()=>show('B');$('fit').onclick=()=>setView('fit');$('hundred').onclick=()=>setView('100');
+document.querySelectorAll('[data-choice]').forEach(b=>b.onclick=()=>{choice=b.dataset.choice;document.querySelectorAll('[data-choice]').forEach(x=>x.classList.toggle('activeBtn',x===b));ready()});
+document.querySelectorAll('[data-confidence]').forEach(b=>b.onclick=()=>{confidence=b.dataset.confidence;document.querySelectorAll('[data-confidence]').forEach(x=>x.classList.toggle('activeBtn',x===b));ready()});
+document.querySelectorAll('[data-reason]').forEach(b=>b.onclick=()=>{const r=b.dataset.reason;if(reasons.has(r))reasons.delete(r);else reasons.add(r);b.classList.toggle('activeBtn',reasons.has(r))});
+function ready(){$('finish').disabled=!(choice&&confidence)}
+$('finish').onclick=()=>{record.completedAt=new Date().toISOString();record.judgment={choice,confidence,reasons:[...reasons]};record.observation={fitViewed:true,oneHundredViewed:view==='100'||$('hundred').classList.contains('activeBtn')};record.revealedMapping=map;localStorage.setItem('kq_grain_blind_last_result',JSON.stringify(record));summary.textContent=JSON.stringify(record,null,2);trial.classList.remove('active');stageWrap.classList.remove('active');results.classList.add('active')};
+$('copy').onclick=async()=>{await navigator.clipboard.writeText(JSON.stringify(record,null,2));$('copy').textContent='已複製'};
+function resetAll(){revoke();localStorage.removeItem('kq_grain_blind_commitment');files={c1:null,c2:null,source:null};f1.value=f2.value=src.value='';map=null;current='A';view='fit';choice=null;confidence=null;reasons.clear();record=null;document.querySelectorAll('.activeBtn').forEach(x=>x.classList.remove('activeBtn'));$('viewA').classList.add('activeBtn');$('fit').classList.add('activeBtn');$('intake').style.display='block';trial.classList.remove('active');stageWrap.classList.remove('active');results.classList.remove('active');refresh();$('copy').textContent='複製 R&D JSON'}
+$('reset').onclick=resetAll;$('cancel').onclick=resetAll;$('again').onclick=resetAll;
+refresh();
+</script>
+</body></html>
