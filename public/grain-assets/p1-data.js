@@ -1,0 +1,1 @@
+window.KOKEI_GRAIN_DATA=window.KOKEI_GRAIN_DATA||{};/* payload omitted */
