@@ -1,0 +1,27 @@
+name: Whites RUN05 Integrity Gate
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - public/whites-run05.html
+      - public/whites-run05-build.json
+      - public/whites-run05-assets/scene1.png
+      - public/whites-run05-assets/scene2.png
+      - public/whites-run05-assets/scene3.png
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify canonical RUN05 assets and blind harness
+        run: python3 tools/verify_whites_run05.py
