@@ -1,8 +1,9 @@
 {
-  "harnessVersion": "KQ-WHITES-RUN05-v0.3",
-  "harnessCommit": "c7a94e6e09697f92f68722e6d1a9f70d32fded60",
+  "harnessVersion": "KQ-WHITES-RUN05-v0.4",
+  "harnessCommit": "b9c5e99111f8603d2880e951583a88ff254f608c",
   "sourcePointer": "thedogof/kokei-web:main/public/whites-run05.html",
   "plateGeometry": "2664x1924; top rows 82..961; detail rows 998..1877",
   "assetManifest": "RUN05 canonical PNG plate byte lengths + SHA-256 embedded in harness",
+  "deliveryContract": "same-origin only; build pointer and final response origin fail-closed",
   "mapping": "SEALED / NOT PRESENT IN CLIENT PAYLOAD"
 }
