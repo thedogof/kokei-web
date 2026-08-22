@@ -1,0 +1,7 @@
+{
+  "harnessVersion": "KQ-WHITES-RUN05-v0.2",
+  "harnessCommit": "37a3375ca77ad9220d9e79f624d98f98dbac5141",
+  "sourcePointer": "thedogof/kokei-web:main/public/whites-run05.html",
+  "assetManifest": "RUN05 canonical PNG plate hashes embedded in harness",
+  "mapping": "SEALED / NOT PRESENT IN CLIENT PAYLOAD"
+}
